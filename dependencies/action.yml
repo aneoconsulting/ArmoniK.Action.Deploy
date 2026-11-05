@@ -72,17 +72,19 @@ runs:
         set -ex
         if ! which docker 2>/dev/null; then
           # Use Ubuntu's own packages: no third-party repository or signing key to maintain
-          sudo apt-get install -y docker.io docker-compose-v2 docker-buildx
+          sudo apt-get install -y docker.io docker-compose-v2 docker-buildx acl
 
           sudo groupadd -f docker
           sudo usermod -aG docker "$USER"
+          # Group membership only applies to new sessions, not to this job's later steps:
+          # grant the current user access to the socket directly (lost if the daemon restarts)
+          sudo setfacl --modify "user:$USER:rw" /var/run/docker.sock
 
           sudo systemctl enable docker.service
           sudo systemctl enable containerd.service
         fi
 
-        # Group membership only applies to new sessions, so the current shell may not have access to the socket yet
-        sudo docker run hello-world
+        docker run hello-world
 
     - name: Install Kubectl
       shell: bash
