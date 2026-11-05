@@ -51,8 +51,10 @@ runs:
       run: |
         set -ex
         if ! which terraform 2>/dev/null; then
-          curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
-          sudo apt-add-repository "deb [arch=$(dpkg --print-architecture)] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+          # apt-key is deprecated and no longer available on recent Ubuntu (26.04+): use a dedicated keyring
+          curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo gpg --batch --yes --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+          sudo apt-get update
           sudo apt-get install -y terraform
         fi
     - if: ${{ inputs.aws && inputs.aws != 'false' }}
