@@ -73,14 +73,14 @@ runs:
       run: |
         set -ex
         if ! which docker 2>/dev/null; then
-          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-          sudo apt-get update
-          sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+          # Use Ubuntu's own packages: no third-party repository or signing key to maintain
+          sudo apt-get install -y docker.io docker-compose-v2 docker-buildx acl
 
           sudo groupadd -f docker
           sudo usermod -aG docker "$USER"
-          newgrp docker
+          # Group membership only applies to new sessions, not to this job's later steps:
+          # grant the current user access to the socket directly (lost if the daemon restarts)
+          sudo setfacl --modify "user:$USER:rw" /var/run/docker.sock
 
           sudo systemctl enable docker.service
           sudo systemctl enable containerd.service
