@@ -67,6 +67,26 @@ runs:
           sudo ./aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update
           rm -rf aws awscliv2.zip
         fi
+    - if: ${{ (inputs.docker && inputs.docker != 'false') || (inputs.k3s && inputs.k3s != 'false') }}
+      name: Allow signals inside AppArmor-confined containers
+      shell: bash
+      run: |
+        # Recent Ubuntu kernels (e.g. 7.0.0-1019-azure on ubuntu-26.04 runners) restrict unprivileged
+        # unconfined profile changes by stacking runc's container profile with "unconfined". Container
+        # processes then get labels like cri-containerd.apparmor.d//&unconfined, which containerd's and
+        # Docker's default profiles do not match in their signal/ptrace rules: processes cannot signal
+        # each other or their own threads (.NET aborts during GC, Go loses SIGURG preemption).
+        # The label is chosen when a container starts, so this must run before any container is started.
+        # Remove once containerd/k3s ship the profile fix:
+        # https://github.com/containerd/containerd/issues/14485
+        # https://github.com/moby/moby/issues/54099
+        set -ex
+        knob=/proc/sys/kernel/apparmor_restrict_unprivileged_unconfined
+        if [ -e "$knob" ]; then
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_unconfined=0
+        else
+          echo "$knob not present on this kernel, nothing to do"
+        fi
     - if: ${{ inputs.docker && inputs.docker != 'false' }}
       name: Install Docker
       shell: bash
