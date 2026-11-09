@@ -16,6 +16,13 @@ inputs:
     description: "Version of Extension Csharp to deploy"
     required: false
     default: ""
+  mongodb-tag:
+    description: >-
+      Tag of the percona/percona-server-mongodb image, localhost deployments only. Empty keeps the tag of versions.tfvars.json.
+      The default works around MongoDB 8.0.21+ refusing to start on the GitHub-hosted runner kernels
+      (https://jira.mongodb.org/browse/SERVER-136848), go back to "" once a fixed 8.0 release is the ArmoniK default
+    required: false
+    default: "7.0.45-24"
   override-compute:
     description: "Override compute plane configuration"
     required: false
@@ -111,6 +118,8 @@ runs:
         CORE_VERSION: ${{ inputs.core-version }}
         GUI_VERSION: ${{ inputs.gui-version }}
         EXT_CSHARP_VERSION: ${{ inputs.ext-csharp-version }}
+        MONGODB_TAG: ${{ inputs.mongodb-tag }}
+        INPUT_TYPE: ${{ inputs.type }}
       run: |
         set -ex
         update_version() {
@@ -125,6 +134,10 @@ runs:
         update_version core "$CORE_VERSION"
         update_version gui "$GUI_VERSION"
         update_version extcsharp "$EXT_CSHARP_VERSION"
+        if [ -n "$MONGODB_TAG" ] && [ "$INPUT_TYPE" == "localhost" ]; then
+          jq --arg tag "$MONGODB_TAG" '.image_tags["percona/percona-server-mongodb"] = $tag' versions.tfvars.json > .versions.tfvars.json
+          mv .versions.tfvars.json versions.tfvars.json
+        fi
     - id: options
       name: Patch options
       shell: bash
